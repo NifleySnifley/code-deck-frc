@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,7 +42,7 @@ namespace CodeDeck
                     //logging.AddEventLog();
                 })
                 .Build();
-            
+
             await host.RunAsync(cts.Token);
         }
 

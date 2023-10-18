@@ -1,6 +1,7 @@
 ﻿using CodeDeck.Models;
 using CodeDeck.Models.Configuration;
 using Microsoft.Extensions.Logging;
+using OpenMacroBoard.SDK;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,6 +20,7 @@ namespace CodeDeck
         private readonly FileSystemWatcher _fileSystemWatcher;
 
         public event EventHandler? ConfigurationChanged;
+        public event EventHandler? DeckCheckConfiguration;
 
         public const string CONFIGURATION_FILE_NAME = "deck.json";
         public const string CONFIGURATION_FOLDER_NAME = ".codedeck";
@@ -41,7 +43,6 @@ namespace CodeDeck
         public ConfigurationProvider(ILogger<ConfigurationProvider> logger)
         {
             _logger = logger;
-
             // Make sure configuration folder exists
             if (!Directory.Exists(ConfigFolder))
             {
@@ -49,8 +50,8 @@ namespace CodeDeck
             }
 
             // Load configuration from file or load a default configuration
-            _loadedConfiguration = LoadConfiguration() ?? CreateDefaultConfiguration();
-            _loadedFlatConfiguration = GetFlatConfiguration(_loadedConfiguration);
+            ReloadConfig(EventArgs.Empty);
+
 
             // Set up file system watcher
             _fileSystemWatcher = new FileSystemWatcher(ConfigFolder)
@@ -69,8 +70,14 @@ namespace CodeDeck
             // TODO: Wait for file access ready in a better way
             await Task.Delay(500); // Wait for file to finish writing
 
+            ReloadConfig(e);
+        }
+
+        public async void ReloadConfig(EventArgs e)
+        {
             // Load configuration from file or load a default configuration
             _loadedConfiguration = LoadConfiguration() ?? CreateDefaultConfiguration();
+            DeckCheckConfiguration?.Invoke(this, e);
             _loadedFlatConfiguration = GetFlatConfiguration(_loadedConfiguration);
 
             // Invoke event handlers
@@ -103,6 +110,7 @@ namespace CodeDeck
                     ReadCommentHandling = JsonCommentHandling.Skip
                 });
 
+
                 if (configuration is not null)
                 {
                     return configuration;
@@ -119,6 +127,7 @@ namespace CodeDeck
 
         private static List<FlatKeyConfiguration> GetFlatConfiguration(StreamDeckConfiguration configuration)
         {
+            Console.WriteLine($"Getting flat config for {configuration.Profiles[0].Pages[0].Keys.Count()} keys");
             var flatConfiguration = (
                 from profile in configuration.Profiles
                 from page in profile.Pages
@@ -139,7 +148,7 @@ namespace CodeDeck
             var config = new StreamDeckConfiguration
             {
                 Brightness = 100,
-
+                Rotation = 0,
                 Profiles = new List<Profile>()
                 {
                     new Profile()
@@ -154,60 +163,10 @@ namespace CodeDeck
                                 {
                                     new Key()
                                     {
-                                        Index = 1,
+                                        ID = new KeyIdentifier(1,1),
                                         Text = "CODE",
                                         BackgroundColor = "#0b367f"
                                     },
-                                    new Key()
-                                    {
-                                        Index = 2,
-                                        Plugin = "Runner",
-                                        Tile = "OpenWebsiteTile",
-                                        Image = "Images/icon.png",
-                                        ImagePadding = 5,
-                                        Settings = new() {
-                                            { "Url", "https://heinandre.no/code-deck" }
-                                        },
-                                    },
-                                    new Key()
-                                    {
-                                        Index = 3,
-                                        Text = "DECK",
-                                        BackgroundColor = "#47750b"
-                                    },
-                                    new Key()
-                                    {
-                                        Index = 11,
-                                        Plugin = "Counter",
-                                        Tile = "CounterTile",
-                                        BackgroundColor = "#b52610"
-                                    },
-                                    new Key()
-                                    {
-                                        Index = 13,
-                                        Profile = "DefaultProfile",
-                                        Page = "Page2",
-                                        Text = "GO TO\nPAGE 2",
-                                    },
-                                }
-                            },
-                            new Page()
-                            {
-                                Name = "Page2",
-                                Keys = new List<Key>()
-                                {
-                                    new Key()
-                                    {
-                                        Index = 0,
-                                        Text = "BACK",
-                                        KeyType = Key.KEY_TYPE_GO_BACK,
-                                        BackgroundColor = "#333333"
-                                    },
-                                    new Key()
-                                    {
-                                        Index = 1,
-                                        Text = "THIS IS\nPAGE 2",
-                                    }
                                 }
                             }
                         }

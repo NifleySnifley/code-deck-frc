@@ -13,6 +13,7 @@ using SixLabors.ImageSharp.Processing;
 using StreamDeckSharp;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -70,6 +71,9 @@ namespace CodeDeck
             _streamDeck = sd;
             _streamDeck.ConnectionStateChanged += StreamDeck_ConnectionStateChanged;
             _streamDeck.KeyStateChanged += StreamDeck_KeyStateChanged;
+
+            _configurationProvider.DeckCheckConfiguration += ConfigurationProvider_CheckConfiguration;
+            _configurationProvider.ReloadConfig(EventArgs.Empty);
 
             _processMonitor.ProcessStarted += ProcessMonitor_ProcessStarted;
             _processMonitor.ProcessExited += ProcessMonitor_ProcessExited;
@@ -241,6 +245,11 @@ namespace CodeDeck
             _applyingConfiguration = false;
         }
 
+        private async void ConfigurationProvider_CheckConfiguration(object? sender, EventArgs e)
+        {
+            _configurationProvider.LoadedConfiguration.PrepareConfiguration(_logger, _streamDeck);
+        }
+
         public async Task Start()
         {
             await ApplyConfiguration();
@@ -407,11 +416,12 @@ namespace CodeDeck
         public void RefreshPage()
         {
             _streamDeck.ClearKeys();
-            
+
             if (_currentPage is null) return;
 
             // Update IsShowing property
-            _keyWrappers.ForEach((k) => {
+            _keyWrappers.ForEach((k) =>
+            {
                 k.IsShowing = k.Profile.Name == _currentPage.ProfileName && k.Page.Name == _currentPage.PageName;
             });
 

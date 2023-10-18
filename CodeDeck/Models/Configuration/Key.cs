@@ -16,7 +16,12 @@ namespace CodeDeck.Models.Configuration
         /// <summary>
         /// The Key index on the deck
         /// </summary>
-        public int Index { get; set; }
+        // public int Index { get; set; }
+
+        public KeyIdentifier? ID { get; set; }
+
+        [JsonIgnore]
+        public int Index;
 
         /// <summary>
         /// 
