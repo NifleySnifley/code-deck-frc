@@ -9,6 +9,9 @@ using NetworkTables.Tables;
 using System.Linq;
 using SixLabors.ImageSharp.PixelFormats;
 using System.IO;
+using System.Text.Json;
+using System.Collections;
+using System.Collections.ObjectModel;
 
 
 namespace CodeDeck.Plugins.Plugins.FRC
@@ -64,6 +67,105 @@ namespace CodeDeck.Plugins.Plugins.FRC
 			}
 		}
 
+		public static NtType ParseNTType(string typename)
+		{
+			return new Dictionary<string, NtType>
+			{
+				["int"] = NtType.Double,
+				["uint"] = NtType.Double,
+				["float"] = NtType.Double,
+				["double"] = NtType.Double,
+				["number"] = NtType.Double,
+				["string"] = NtType.String,
+				["bool"] = NtType.Boolean,
+				["boolean"] = NtType.Boolean,
+				["double[]"] = NtType.DoubleArray,
+				["float[]"] = NtType.DoubleArray,
+				["number[]"] = NtType.DoubleArray,
+				["int[]"] = NtType.DoubleArray,
+				["uint[]"] = NtType.DoubleArray,
+				["string[]"] = NtType.StringArray,
+				["bool[]"] = NtType.BooleanArray,
+				["boolean[]"] = NtType.BooleanArray,
+			}.GetValueOrDefault(typename.ToLower(), NtType.Unassigned);
+		}
+
+		public static Value? ParseNTValue(NtType typename, string strrep)
+		{
+			switch (typename)
+			{
+				case NtType.Double:
+					double v;
+					if (double.TryParse(strrep, out v))
+						return Value.MakeValue(v);
+					else
+						return null;
+				case NtType.Boolean:
+					bool b;
+					if (bool.TryParse(strrep, out b))
+						return Value.MakeValue(b);
+					else
+						return null;
+				case NtType.String:
+					return Value.MakeValue(strrep);
+				case NtType.DoubleArray:
+					double[]? arrd = JsonSerializer.Deserialize<double[]>(strrep);
+					if (arrd is not null)
+						return Value.MakeValue(arrd);
+					else
+						return null;
+				case NtType.StringArray:
+					string[]? arrs = JsonSerializer.Deserialize<string[]>(strrep);
+					if (arrs is not null)
+						return Value.MakeValue(arrs);
+					else
+						return null;
+				case NtType.BooleanArray:
+					bool[]? arrb = JsonSerializer.Deserialize<bool[]>(strrep);
+					if (arrb is not null)
+						return Value.MakeValue(arrb);
+					else
+						return null;
+			}
+			return null;
+		}
+
+		public static bool CompareNTValue(Value a, Value b)
+		{
+			if (a.Type == b.Type)
+			{
+				object ao = a.GetObjectValue();
+				object bo = b.GetObjectValue();
+				if (a.Type == NtType.BooleanArray)
+				{
+					bool[] A = a.GetBooleanArray();
+					bool[] B = b.GetBooleanArray();
+					return Enumerable.SequenceEqual(A, B);
+				}
+				else if (a.Type == NtType.DoubleArray)
+				{
+					double[] A = a.GetDoubleArray();
+					double[] B = b.GetDoubleArray();
+					return Enumerable.SequenceEqual(A, B);
+				}
+				else if (a.Type == NtType.BooleanArray)
+				{
+					string[] A = a.GetStringArray();
+					string[] B = b.GetStringArray();
+					return Enumerable.SequenceEqual(A, B);
+				}
+				else
+				{
+
+					return Comparer.Equals(ao, bo);
+				}
+			}
+			else
+			{
+				return false;
+			}
+		}
+
 		public class NTBooleanButton : Tile
 		{
 			NTValueWrapper remote;
@@ -97,8 +199,6 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 				ChangeListener(this, EventArgs.Empty);
 
-				Update();
-
 				return base.Init(cancellationToken);
 			}
 
@@ -110,7 +210,7 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 			private void Update()
 			{
-				BackgroundColor = (remote is not null && remote.value is not null && remote.value.IsBoolean() && remote.value.GetBoolean()) ? truecolor : falsecolor;
+				BackgroundColor = state ? truecolor : falsecolor;
 			}
 
 			public override Task OnTilePressDown(CancellationToken cancellationToken)
@@ -121,7 +221,6 @@ namespace CodeDeck.Plugins.Plugins.FRC
 					state = true;
 				}
 				remote.value = Value.MakeBoolean(state);
-				Update();
 				return base.OnTilePressDown(cancellationToken);
 			}
 
@@ -131,7 +230,6 @@ namespace CodeDeck.Plugins.Plugins.FRC
 				{
 					state = false;
 					remote.value = Value.MakeBoolean(state);
-					Update();
 				}
 				return base.OnTilePressUp(cancellationToken);
 			}
@@ -210,9 +308,76 @@ namespace CodeDeck.Plugins.Plugins.FRC
 			}
 		}
 
-		// class NTRadioButton : Tile
-		// {
+		public class NTRadioButton : Tile
+		{
+			static Dictionary<string, NTValueWrapper> remotes = new();
+			string ntpath = nameof(NTRadioButton);
 
-		// }
+			Color selectedBg = Color.Green;
+			Color normalBg = Color.Transparent;
+
+			NtType type;
+			Value thisbuttonvalue = new Value();
+
+			public NTRadioButton()
+			{
+			}
+
+
+			public override Task Init(CancellationToken cancellationToken)
+			{
+				InitNT();
+
+				if (Settings?.ContainsKey("TrueColor") ?? false)
+					Color.TryParse(Settings["TrueColor"], out selectedBg);
+				if (Settings?.ContainsKey("FalseColor") ?? false)
+					Color.TryParse(Settings["FalseColor"], out normalBg);
+
+				ntpath = Settings?["NTPath"] ?? "ERR";
+				remotes[ntpath] = new NTValueWrapper(ntpath);
+				remotes[ntpath].ChangeListener += ChangeListener;
+
+				ParseValue(Settings?["Value"]);
+
+				return base.Init(cancellationToken);
+			}
+
+			private void ParseValue(string? value)
+			{
+				if (value is null) return;
+				string[] parts = value.Split(':');
+				if (parts.Length != 2) return;
+				type = ParseNTType(parts[0]);
+				thisbuttonvalue = ParseNTValue(type, parts[1]) ?? new Value();
+			}
+
+			private void SetIconState()
+			{
+				bool state = CompareNTValue(remotes[ntpath].value, thisbuttonvalue);
+				BackgroundColor = state ? selectedBg : normalBg;
+			}
+
+			private void ChangeListener(object? sender, EventArgs e)
+			{
+				SetIconState();
+			}
+
+			public override Task OnTilePressDown(CancellationToken cancellationToken)
+			{
+				remotes[ntpath].value = thisbuttonvalue;
+				SetIconState();
+				return base.OnTilePressDown(cancellationToken);
+			}
+
+			public override Task OnTilePressUp(CancellationToken cancellationToken)
+			{
+				return base.OnTilePressUp(cancellationToken);
+			}
+
+			public override Task DeInit()
+			{
+				return base.DeInit();
+			}
+		}
 	}
 }
