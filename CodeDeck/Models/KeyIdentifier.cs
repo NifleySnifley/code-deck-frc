@@ -66,7 +66,6 @@ namespace CodeDeck.Models
 
 		public int ConvertToIndex(IMacroBoard deck)
 		{
-			Console.WriteLine($"Converted {x},{y} to {y * deck.Keys.CountX + x}");
 			return y * deck.Keys.CountX + x;
 		}
 	}

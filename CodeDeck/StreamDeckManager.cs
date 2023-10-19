@@ -73,7 +73,6 @@ namespace CodeDeck
             _streamDeck.KeyStateChanged += StreamDeck_KeyStateChanged;
 
             _configurationProvider.DeckCheckConfiguration += ConfigurationProvider_CheckConfiguration;
-            _configurationProvider.ReloadConfig(EventArgs.Empty);
 
             _processMonitor.ProcessStarted += ProcessMonitor_ProcessStarted;
             _processMonitor.ProcessExited += ProcessMonitor_ProcessExited;
@@ -247,7 +246,7 @@ namespace CodeDeck
 
         private async void ConfigurationProvider_CheckConfiguration(object? sender, EventArgs e)
         {
-            _configurationProvider.LoadedConfiguration.PrepareConfiguration(_logger, _streamDeck);
+            _configurationProvider.LoadedConfiguration.PrepareConfiguration(_logger, _streamDeck, _configurationProvider);
         }
 
         public async Task Start()

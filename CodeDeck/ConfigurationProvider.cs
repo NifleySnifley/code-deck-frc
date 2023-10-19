@@ -127,7 +127,6 @@ namespace CodeDeck
 
         private static List<FlatKeyConfiguration> GetFlatConfiguration(StreamDeckConfiguration configuration)
         {
-            Console.WriteLine($"Getting flat config for {configuration.Profiles[0].Pages[0].Keys.Count()} keys");
             var flatConfiguration = (
                 from profile in configuration.Profiles
                 from page in profile.Pages

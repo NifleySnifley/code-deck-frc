@@ -26,7 +26,7 @@ namespace CodeDeck.Models.Configuration
 
         public List<Profile> Profiles { get; set; } = new();
 
-        public void PrepareConfiguration(ILogger<object> l, IMacroBoard deck)
+        public void PrepareConfiguration(ILogger<object> l, IMacroBoard deck, ConfigurationProvider config)
         {
             foreach (Profile prof in Profiles)
                 foreach (Page pg in prof.Pages)

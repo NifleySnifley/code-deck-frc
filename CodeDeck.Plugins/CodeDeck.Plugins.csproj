@@ -13,10 +13,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference
+      Include="..\CodeDeck.PluginAbstractions\CodeDeck.PluginAbstractions.csproj" />
+    <!-- <ProjectReference Include="..\CodeDeck\CodeDeck.csproj" /> -->
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Plugins\AudioDeviceSwitcher\AudioDeviceSwitcher.cs" />
     <Compile Remove="Plugins\Clock\Clock.cs" />
     <Compile Remove="Plugins\Clock\StopWatch.cs" />
-    <Compile Remove="Plugins\CounterStrikeGlobalOffensiveNetCon\CounterStrikeGlobalOffensiveNetCon.cs" />
+    <Compile
+      Remove="Plugins\CounterStrikeGlobalOffensiveNetCon\CounterStrikeGlobalOffensiveNetCon.cs" />
     <Compile Remove="Plugins\Counter\Counter.cs" />
     <Compile Remove="Plugins\HyperXCloudFlightWireless\HyperXCloudFlightWireless.cs" />
     <Compile Remove="Plugins\KeyboardSimulator\KeyboardSimulator.cs" />
@@ -30,6 +37,7 @@
     <Compile Remove="Plugins\Template\Template.cs" />
     <Compile Remove="Plugins\Weather\YrImageTile.cs" />
     <Compile Remove="Plugins\WebRequest\WebRequest.cs" />
+    <!-- <Compile Remove="Plugins\FRC\FRCPlugin.cs" /> -->
   </ItemGroup>
 
   <ItemGroup>
@@ -42,7 +50,8 @@
     <Content Include="Plugins\Clock\StopWatch.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Plugins\CounterStrikeGlobalOffensiveNetCon\CounterStrikeGlobalOffensiveNetCon.cs">
+    <Content
+      Include="Plugins\CounterStrikeGlobalOffensiveNetCon\CounterStrikeGlobalOffensiveNetCon.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Plugins\Counter\Counter.cs">
@@ -82,6 +91,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Plugins\WebRequest\WebRequest.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Plugins\FRC\FRCPlugin.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
@@ -364,6 +376,10 @@
     <None Update="Plugins\Weather\Icons\snowshowers_polartwilight.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FRC.NetworkTables" Version="3.1.8" />
   </ItemGroup>
 
 </Project>

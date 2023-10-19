@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -69,6 +70,7 @@ namespace CodeDeck
         {
             _pluginLoader.LoadAllPlugins();
             await _streamDeckManager.Start();
+            _configurationProvider.ReloadConfig(EventArgs.Empty);
 
             await Task.Delay(-1, stoppingToken);
         }

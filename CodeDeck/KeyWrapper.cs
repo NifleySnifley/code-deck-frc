@@ -60,7 +60,7 @@ namespace CodeDeck
             }
             catch (Exception e)
             {
-                _logger.LogError($"Exception during 'Tile.Init' in plugin: {Plugin.Name}; tile: {Tile?.GetType().Name ?? "null"}. Message: '{e.Message}'");
+                _logger.LogError($"Exception during 'Tile.Init' in plugin: {Plugin.Name}; tile: {Tile?.GetType().Name ?? "null"}. Message: '{e.Message}, {e.StackTrace}'");
             }
         }
 

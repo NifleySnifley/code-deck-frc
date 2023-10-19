@@ -1,6 +1,7 @@
 ﻿using CodeDeck.Models.Configuration;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,6 +12,7 @@ namespace CodeDeck
     {
         private readonly ILogger<PluginLoader> _logger;
         private readonly StreamDeckConfiguration _streamDeckConfiguration;
+        private readonly ConfigurationProvider _configurationProvider;
 
         public List<Plugin> LoadedPlugins = new();
 
@@ -18,6 +20,7 @@ namespace CodeDeck
         {
             _logger = logger;
             _streamDeckConfiguration = configurationProvider.LoadedConfiguration;
+            _configurationProvider = configurationProvider;
         }
 
         public void LoadAllPlugins()
