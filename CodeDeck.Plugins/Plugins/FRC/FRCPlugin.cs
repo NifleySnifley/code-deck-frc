@@ -404,6 +404,11 @@ namespace CodeDeck.Plugins.Plugins.FRC
 			[Setting] public double? Min { get; set; }
 			[Setting] public double? Max { get; set; }
 			[Setting] public double? Initial { get; set; }
+			[Setting] public Boolean? Holdable { get; set; }
+			[Setting] public int? HoldPulseMS { get; set; }
+			[Setting] public int? HoldSenseMS { get; set; }
+
+			private CancellationTokenSource _bgTaskCancel = new();
 
 			private Color? _maxColor;
 			private Color? _minColor;
@@ -439,6 +444,7 @@ namespace CodeDeck.Plugins.Plugins.FRC
 				Max = Max ?? 255;
 				Increment = Increment ?? 1;
 				_defaultBg = BackgroundColor ?? Color.Transparent;
+				Holdable = Holdable ?? false;
 
 				remote = NTValueWrapper.GetWrapper(NTPath);
 				remote.ChangeListener += ChangeListener;
@@ -447,6 +453,23 @@ namespace CodeDeck.Plugins.Plugins.FRC
 					remote.value = Value.MakeDouble(Initial.Value);
 
 				return base.Init(cancellationToken);
+			}
+
+			private async Task HoldTask(CancellationToken cancellationToken)
+			{
+				Execute();
+				await Task.Delay(HoldSenseMS ?? 500); // Initial wait for press!
+				while (!cancellationToken.IsCancellationRequested)
+				{
+					Execute();
+					await Task.Delay(HoldPulseMS ?? 100, cancellationToken);
+				}
+			}
+
+			private void Execute()
+			{
+				remote.value = Value.MakeDouble(Math.Clamp(remote.value.GetDouble() + Increment.Value, Min.Value, Max.Value));
+				SetIconState();
 			}
 
 			private void SetIconState()
@@ -470,15 +493,25 @@ namespace CodeDeck.Plugins.Plugins.FRC
 				SetIconState();
 			}
 
-			public override Task OnTilePressDown(CancellationToken cancellationToken)
+			public async override Task OnTilePressDown(CancellationToken cancellationToken)
 			{
-				remote.value = Value.MakeDouble(Math.Clamp(remote.value.GetDouble() + Increment.Value, Min.Value, Max.Value));
-				SetIconState();
-				return base.OnTilePressDown(cancellationToken);
+				if (Holdable.Value)
+				{
+					_bgTaskCancel.Cancel();
+					_bgTaskCancel = new();
+					await Task.Run(async () =>
+					HoldTask(_bgTaskCancel.Token), _bgTaskCancel.Token);
+				}
+				else
+				{
+					Execute();
+				}
+				await base.OnTilePressDown(cancellationToken);
 			}
 
 			public override Task OnTilePressUp(CancellationToken cancellationToken)
 			{
+				_bgTaskCancel.Cancel();
 				return base.OnTilePressUp(cancellationToken);
 			}
 

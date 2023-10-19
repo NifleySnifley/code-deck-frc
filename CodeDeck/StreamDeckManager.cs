@@ -3,7 +3,9 @@ using CodeDeck.Services;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
+using Nito.AsyncEx.Synchronous;
 using OpenMacroBoard.SDK;
+using OpenMacroBoard.SocketIO;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing;
@@ -15,6 +17,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SqlTypes;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CodeDeck
@@ -64,8 +67,13 @@ namespace CodeDeck
 
             if (sd is null)
             {
-                _logger.LogError($"{nameof(OpenStreamDeck)} failed!");
-                Environment.Exit(1);
+                _logger.LogInformation("No StreamDeck found, attempting to open VirtualDeck");
+                sd = OpenVDeck();
+                if (sd is null)
+                {
+                    _logger.LogError($"{nameof(OpenStreamDeck)} failed!");
+                    Environment.Exit(1);
+                }
             }
 
             _streamDeck = sd;
@@ -153,6 +161,20 @@ namespace CodeDeck
             }
 
             return streamDeck;
+        }
+
+        private IMacroBoard? OpenVDeck()
+        {
+            // SocketIOMacroBoardHost host = new ("VirtualBoard", System.Net.IPEndPoint.Parse("127.0.0.1:27621"), new GridKeyLayout(5, 3, 100, 10));
+            // DeviceContext.Create(System.Net.IPAddress.Parse("127.0.0.1")).Open()
+            using var ctx = DeviceContext.Create()
+                .AddListener<StreamDeckListener>()
+                .AddListener(new SocketIOBoardListener(System.Net.IPAddress.Parse("127.0.0.1")));
+
+            CancellationToken tok = new CancellationToken();
+            var task = ctx.OpenAsync(x => true, tok);
+            IMacroBoard result = task.WaitAndUnwrapException();
+            return result;
         }
 
         private void StreamDeck_ConnectionStateChanged(object? sender, ConnectionEventArgs e)
