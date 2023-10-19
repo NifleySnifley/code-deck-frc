@@ -38,6 +38,10 @@ namespace CodeDeck
             UserFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             ConfigFolder = Path.Combine(UserFolder, CONFIGURATION_FOLDER_NAME);
             ConfigFile = Path.Combine(ConfigFolder, CONFIGURATION_FILE_NAME);
+            // TODO: Find a less sketchy way to parse command line args and select the right config file
+            if (Environment.GetCommandLineArgs().Length > 1)
+                ConfigFile = Path.Combine(ConfigFolder, Environment.GetCommandLineArgs()[1]);
+
         }
 
         public ConfigurationProvider(ILogger<ConfigurationProvider> logger)
