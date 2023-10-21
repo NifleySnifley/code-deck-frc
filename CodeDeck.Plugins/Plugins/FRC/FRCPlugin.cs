@@ -10,6 +10,9 @@ using SixLabors.ImageSharp.PixelFormats;
 using System.IO;
 using System.Text.Json;
 using System.Net.Security;
+using System.Text.Json.Serialization;
+using System.Text.Json.Nodes;
+using System.Text.Unicode;
 
 namespace CodeDeck.Plugins.Plugins.FRC
 {
@@ -17,10 +20,8 @@ namespace CodeDeck.Plugins.Plugins.FRC
 	{
 		static bool ntinit = false;
 
-
 		static FRCPlugin()
 		{
-
 		}
 
 		static void InitNT()
@@ -28,11 +29,11 @@ namespace CodeDeck.Plugins.Plugins.FRC
 			if (!ntinit)
 			{
 				NetworkTable.SetClientMode();
-				int team = int.Parse(Settings?.GetValueOrDefault("Team", "2530") ?? "2530");
+				int team = Settings?["Team"]?.GetValue<int>() ?? 2530;
 				NetworkTable.SetTeam(team);
 				NetworkTable.SetNetworkIdentity("FRCDeck");
 				if (Settings?.ContainsKey("IP") ?? false)
-					NetworkTable.SetIPAddress(Settings["IP"]);
+					NetworkTable.SetIPAddress(Settings?["IP"]?.GetValue<string>() ?? "localhost");
 				NetworkTable.Initialize();
 				ntinit = true;
 			}
@@ -40,8 +41,13 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 		public class NTValueWrapper
 		{
-			string path;
+			string? path;
 			static Dictionary<string, NTValueWrapper> remotes = new();
+
+			public NTValueWrapper()
+			{
+
+			}
 
 			public NTValueWrapper(string path)
 			{
@@ -64,17 +70,25 @@ namespace CodeDeck.Plugins.Plugins.FRC
 				}
 			}
 
+			public static NTValueWrapper Empty()
+			{
+				return new NTValueWrapper();
+			}
+
 			public event EventHandler? ChangeListener;
 
 			public Value value
 			{
 				get
 				{
-					return NtCore.GetEntryValue(path);
+					if (path is not null)
+						return NtCore.GetEntryValue(path);
+					return new Value();
 				}
 				set
 				{
-					NtCore.SetEntryValue(path, value);
+					if (path is not null)
+						NtCore.SetEntryValue(path, value);
 				}
 			}
 		}
@@ -142,6 +156,58 @@ namespace CodeDeck.Plugins.Plugins.FRC
 			return null;
 		}
 
+		public static Value? ParseNTValueJSON(JsonValue? v)
+		{
+			if (v is null) return null;
+			if (v.TryGetValue<double>(out double d))
+			{
+				return Value.MakeDouble(d);
+			}
+			else if (v.TryGetValue<int>(out int i))
+			{
+				return Value.MakeDouble(i);
+			}
+			else if (v.TryGetValue<string>(out string? s) && s is not null)
+			{
+				return Value.MakeString(s);
+			}
+			else if (v.TryGetValue<bool>(out bool b))
+			{
+				return Value.MakeBoolean(b);
+			}
+			else if (v.TryGetValue<double[]>(out double[]? ds) && ds is not null)
+			{
+				return Value.MakeDoubleArray(ds);
+			}
+			else if (v.TryGetValue<int[]>(out int[]? ins) && ins is not null)
+			{
+				return Value.MakeDoubleArray(ins.Select(x => (double)x).ToArray());
+			}
+			else if (v.TryGetValue<bool[]>(out bool[]? bs) && bs is not null)
+			{
+				return Value.MakeBooleanArray(bs);
+			}
+			else if (v.TryGetValue<string[]>(out string[]? ss) && ss is not null)
+			{
+				return Value.MakeStringArray(ss);
+			}
+
+			return null;
+		}
+
+		public class NTValueConverter : JsonConverter<Value>
+		{
+			public override Value? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+			{
+				return ParseNTValueJSON(JsonObject.Parse(ref reader, null)?.AsValue());
+			}
+
+			public override void Write(Utf8JsonWriter writer, Value value, JsonSerializerOptions options)
+			{
+				writer.WriteStringValue(value.IsString() ? $"\"{value}\"" : value.ToString());
+			}
+		}
+
 		public static bool CompareNTValue(Value a, Value b)
 		{
 			if (a.Type == b.Type)
@@ -179,34 +245,25 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 		public class NTBooleanButton : Tile
 		{
-			NTValueWrapper remote;
-			Color truecolor = Color.Transparent;
-			Color falsecolor = Color.Transparent;
+			NTValueWrapper remote = NTValueWrapper.Empty();
 
-			bool toggle = false;
+			[Setting] public Color TrueColor { get; set; } = Color.Transparent;
+
+			[Setting] public Color FalseColor { get; set; } = Color.Transparent;
+
+			[Setting] public bool Toggle { get; set; } = false;
 			bool state = false;
 
-
-			public NTBooleanButton()
-			{
-			}
 
 			public override Task Init(CancellationToken cancellationToken)
 			{
 				InitNT();
 
-				if (Settings?.ContainsKey("TrueColor") ?? false)
-					Color.TryParse(Settings["TrueColor"], out truecolor);
-				if (Settings?.ContainsKey("FalseColor") ?? false)
-					Color.TryParse(Settings["FalseColor"], out falsecolor);
-
-				toggle = (Settings?.GetValueOrDefault("Toggle", "") ?? "").ToLower() == "true";
-
-				remote = NTValueWrapper.GetWrapper(Settings?["NTPath"] ?? nameof(NTBooleanButton));
+				remote = NTValueWrapper.GetWrapper(Settings?["NTPath"]?.GetValue<string>() ?? nameof(NTBooleanButton));
 				remote.ChangeListener += ChangeListener;
 
 				if (Settings?.ContainsKey("Initial") ?? false)
-					remote.value = Value.MakeBoolean(bool.Parse(Settings["Initial"]));
+					remote.value = Value.MakeBoolean(bool.Parse(Settings["Initial"]?.GetValue<string>() ?? ""));
 
 				ChangeListener(this, EventArgs.Empty);
 
@@ -221,12 +278,12 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 			private void Update()
 			{
-				BackgroundColor = state ? truecolor : falsecolor;
+				BackgroundColor = state ? TrueColor : FalseColor;
 			}
 
 			public override Task OnTilePressDown(CancellationToken cancellationToken)
 			{
-				if (toggle) state = !state;
+				if (Toggle) state = !state;
 				else
 				{
 					state = true;
@@ -237,7 +294,7 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 			public override Task OnTilePressUp(CancellationToken cancellationToken)
 			{
-				if (!toggle)
+				if (!Toggle)
 				{
 					state = false;
 					remote.value = Value.MakeBoolean(state);
@@ -254,35 +311,21 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 		public class NTBooleanIndicator : Tile
 		{
-			NTValueWrapper remote;
-			Color truecolor = Color.Green;
-			Color falsecolor = Color.Red;
+			NTValueWrapper remote = NTValueWrapper.Empty();
+			[Setting] public Color TrueColor { set; get; } = Color.Green;
+			[Setting] public Color FalseColor { get; set; } = Color.Red;
 
-			Image trueimage = new Image<Rgba32>(10, 10);
-			Image? falseimage = new Image<Rgba32>(10, 10);
+			[Setting] public Image? TrueImage { get; set; } = null;
+			[Setting] public Image? FalseImage { get; set; } = null;
 
-
-			public NTBooleanIndicator()
-			{
-			}
-
+			[Setting]
+			public JsonObject? TestSetting { get; set; } = null;
 
 			public override Task Init(CancellationToken cancellationToken)
 			{
 				InitNT();
 
-				if (Settings?.ContainsKey("TrueColor") ?? false)
-					Color.TryParse(Settings["TrueColor"], out truecolor);
-				if (Settings?.ContainsKey("FalseColor") ?? false)
-					Color.TryParse(Settings["FalseColor"], out falsecolor);
-
-				if (Settings?.ContainsKey("TrueIcon") ?? false && File.Exists(Settings["TrueIcon"]))
-					trueimage = Image.Load(Settings["TrueIcon"]);
-				if (Settings?.ContainsKey("FalseIcon") ?? false && File.Exists(Settings["FalseIcon"]))
-					falseimage = Image.Load(Settings["FalseIcon"]);
-
-
-				remote = NTValueWrapper.GetWrapper(Settings?["NTPath"] ?? nameof(NTBooleanButton));
+				remote = NTValueWrapper.GetWrapper(Settings?["NTPath"]?.GetValue<string>() ?? nameof(NTBooleanButton));
 				remote.ChangeListener += ChangeListener;
 
 				SetIconState(remote is not null && remote.value is not null && remote.value.IsBoolean() && remote.value.GetBoolean());
@@ -291,11 +334,12 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 			private void SetIconState(bool state)
 			{
-				BackgroundColor = state ? truecolor : falsecolor;
+				BackgroundColor = state ? TrueColor : FalseColor;
 
-				Text = (state ? Settings?.GetValueOrDefault("TrueText", "") : Settings?.GetValueOrDefault("FalseText", "")) ?? "";
+				Text = state ? (Settings?["TrueText"]?.GetValue<string>() ?? "") : (Settings?["FalseText"]?.GetValue<string>() ?? "");
 
-				Image = state ? trueimage : falseimage;
+				Image? isel = state ? TrueImage : FalseImage;
+				if (isel is not null) Image = isel;
 			}
 
 			private void ChangeListener(object? sender, EventArgs e)
@@ -321,33 +365,32 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 		public class NTValueSetter : Tile
 		{
-			private NTValueWrapper remote;
+			private NTValueWrapper remote = NTValueWrapper.Empty();
 			[Setting] public string NTPath { get; set; } = nameof(NTValueSetter);
 
-			Color selectedBg = Color.Green;
-			Color normalBg = Color.Transparent;
+			[Setting] public Color SelectedColor { get; set; } = Color.Green;
+			[Setting] public Color UnselectedColor { get; set; } = Color.Transparent;
 
-			NtType type;
-			Value thisbuttonvalue = new Value();
-
-			public NTValueSetter()
-			{
-			}
+			// NtType type;
+			[Setting][JsonConverter(typeof(NTValueConverter))] public Value Value { get; set; } = new Value();
+			[Setting][JsonConverter(typeof(NTValueConverter))] public Value? Initial { get; set; } = null;
 
 
 			public override async Task Init(CancellationToken cancellationToken)
 			{
 				InitNT();
 
-				if (Settings?.ContainsKey("TrueColor") ?? false)
-					Color.TryParse(Settings["TrueColor"], out selectedBg);
-				if (Settings?.ContainsKey("FalseColor") ?? false)
-					Color.TryParse(Settings["FalseColor"], out normalBg);
-
 				remote = NTValueWrapper.GetWrapper(NTPath);
 				remote.ChangeListener += ChangeListener;
 
-				ParseValue(Settings?["Value"]);
+				// Console.WriteLine(Settings?.ToJsonString());
+				// Console.WriteLine(Settings?["Value"]?.GetValue<string>());
+
+				// thisbuttonvalue = ParseValue(Settings?["Value"]?.GetValue<string>()) ?? Value.MakeString(Text);
+				// thisinitvalue = ParseValue(Settings?["Initial"]?.GetValue<string>());
+
+				if (Initial is not null)
+					remote.value = Initial;
 
 				// TODO: Find a better way to get an initial value!
 				await Task.Delay(800);
@@ -357,19 +400,20 @@ namespace CodeDeck.Plugins.Plugins.FRC
 				await base.Init(cancellationToken);
 			}
 
-			private void ParseValue(string? value)
-			{
-				if (value is null) return;
-				string[] parts = value.Split(':');
-				if (parts.Length != 2) return;
-				type = ParseNTType(parts[0]);
-				thisbuttonvalue = ParseNTValue(type, parts[1]) ?? new Value();
-			}
+			// TODO: Move to upper class, parse type AND value (tuple)
+			// private Value? ParseValue(string? value)
+			// {
+			// 	if (value is null) return null;
+			// 	string[] parts = value.Split(':');
+			// 	if (parts.Length != 2) return null;
+			// 	type = ParseNTType(parts[0]);
+			// 	return ParseNTValue(type, parts[1]) ?? new Value();
+			// }
 
 			private void SetIconState()
 			{
-				bool state = CompareNTValue(remote.value, thisbuttonvalue);
-				BackgroundColor = state ? selectedBg : normalBg;
+				bool state = CompareNTValue(remote.value, Value);
+				BackgroundColor = state ? SelectedColor : UnselectedColor;
 			}
 
 			private void ChangeListener(object? sender, EventArgs e)
@@ -379,7 +423,7 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 			public override Task OnTilePressDown(CancellationToken cancellationToken)
 			{
-				remote.value = thisbuttonvalue;
+				remote.value = Value;
 				SetIconState();
 				return base.OnTilePressDown(cancellationToken);
 			}
@@ -397,54 +441,29 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 		public class NTNumberChanger : Tile
 		{
-			private NTValueWrapper remote;
+			private NTValueWrapper remote = NTValueWrapper.Empty();
 			[Setting] public string NTPath { get; set; } = nameof(NTNumberChanger);
 
-			[Setting] public double? Increment { get; set; }
-			[Setting] public double? Min { get; set; }
-			[Setting] public double? Max { get; set; }
+			[Setting] public double Increment { get; set; }
+			[Setting] public double Min { get; set; } = double.MinValue;
+			[Setting] public double Max { get; set; } = double.MaxValue;
 			[Setting] public double? Initial { get; set; }
-			[Setting] public Boolean? Holdable { get; set; }
+			[Setting] public bool Holdable { get; set; } = false;
 			[Setting] public int? HoldPulseMS { get; set; }
 			[Setting] public int? HoldSenseMS { get; set; }
 
 			private CancellationTokenSource _bgTaskCancel = new();
 
-			private Color? _maxColor;
-			private Color? _minColor;
-			private Color _defaultBg;
+			[Setting] public Color? MaxColor { get; set; }
+			[Setting] public Color? MinColor { get; set; }
 
-			[Setting]
-			public string? MaxColor
-			{
-				set
-				{
-					_maxColor = Color.Parse(value);
-				}
-			}
-			[Setting]
-			public string? MinColor
-			{
-				set
-				{
-					_minColor = Color.Parse(value);
-				}
-			}
-
-			public NTNumberChanger()
-			{
-			}
-
+			private Color DefaultColor;
 
 			public override Task Init(CancellationToken cancellationToken)
 			{
 				InitNT();
 
-				Min = Min ?? 0;
-				Max = Max ?? 255;
-				Increment = Increment ?? 1;
-				_defaultBg = BackgroundColor ?? Color.Transparent;
-				Holdable = Holdable ?? false;
+				DefaultColor = BackgroundColor ?? Color.Transparent;
 
 				remote = NTValueWrapper.GetWrapper(NTPath);
 				remote.ChangeListener += ChangeListener;
@@ -468,23 +487,23 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 			private void Execute()
 			{
-				remote.value = Value.MakeDouble(Math.Clamp(remote.value.GetDouble() + Increment.Value, Min.Value, Max.Value));
+				remote.value = Value.MakeDouble(Math.Clamp(remote.value.GetDouble() + Increment, Min, Max));
 				SetIconState();
 			}
 
 			private void SetIconState()
 			{
-				if (remote.value.GetDouble() <= Min && _minColor is not null)
+				if (remote.value.GetDouble() <= Min && MinColor is not null)
 				{
-					BackgroundColor = _minColor;
+					BackgroundColor = MinColor;
 				}
-				else if (remote.value.GetDouble() >= Max && _maxColor is not null)
+				else if (remote.value.GetDouble() >= Max && MaxColor is not null)
 				{
-					BackgroundColor = _maxColor;
+					BackgroundColor = MaxColor;
 				}
 				else
 				{
-					BackgroundColor = _defaultBg;
+					BackgroundColor = DefaultColor;
 				}
 			}
 
@@ -495,12 +514,12 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 			public async override Task OnTilePressDown(CancellationToken cancellationToken)
 			{
-				if (Holdable.Value)
+				if (Holdable)
 				{
 					_bgTaskCancel.Cancel();
 					_bgTaskCancel = new();
 					await Task.Run(async () =>
-					HoldTask(_bgTaskCancel.Token), _bgTaskCancel.Token);
+					await HoldTask(_bgTaskCancel.Token), _bgTaskCancel.Token);
 				}
 				else
 				{

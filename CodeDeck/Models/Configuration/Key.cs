@@ -1,6 +1,8 @@
 ﻿using SixLabors.ImageSharp;
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace CodeDeck.Models.Configuration
@@ -66,7 +68,9 @@ namespace CodeDeck.Models.Configuration
         /// Settings for the Tile
         /// </summary>
         // TODO: Should this be a typed object, type defined by Tile
-        public Dictionary<string, string>? Settings { get; set; }
+        // DONE: Yes! it should... sort of
+        // public Dictionary<string, string>? Settings { get; set; }
+        public JsonObject? Settings { get; set; }
 
 
 

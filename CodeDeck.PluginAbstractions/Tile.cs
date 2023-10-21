@@ -1,4 +1,5 @@
-﻿using SixLabors.ImageSharp;
+﻿using System.Text.Json.Nodes;
+using SixLabors.ImageSharp;
 
 namespace CodeDeck.PluginAbstractions
 {
@@ -104,8 +105,8 @@ namespace CodeDeck.PluginAbstractions
             }
         }
 
-        public Dictionary<string, string>? Settings { get; set; }
-
+        // TODO: Convert to JsonObject, then it can be parsed into each plugin's tile instance with no typing issues and no further parsing required
+        public JsonObject? Settings { get; set; }
 
         public Tile() { }
 

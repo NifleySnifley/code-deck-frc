@@ -1,3 +1,4 @@
+using CodeDeck.Models;
 using CodeDeck.Models.Configuration;
 using CodeDeck.PluginAbstractions;
 using Microsoft.CodeAnalysis;
@@ -5,6 +6,9 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,6 +16,10 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace CodeDeck
 {
@@ -206,7 +214,7 @@ namespace CodeDeck
             return pluginType;
         }
 
-        public Tile? CreateTileInstance(string tileTypeName, Dictionary<string, string>? settings)
+        public Tile? CreateTileInstance(string tileTypeName, JsonObject? settings)
         {
             if (PluginType is null)
             {
@@ -237,6 +245,7 @@ namespace CodeDeck
             return tileInstance;
         }
 
+
         /// <summary>
         /// This method maps a Dictionary of settings to the relevant properties of a class.
         /// The destination object might be a static class or a class instance.
@@ -245,12 +254,10 @@ namespace CodeDeck
         /// <param name="settings"></param>
         /// <param name="type"></param>
         /// <param name="instance"></param>
-        private void MapSettings(Dictionary<string, string>? settings, Type type, object? instance = null)
+        private void MapSettings(JsonObject? settings, Type type, object? instance = null)
         {
             // Assign the raw key settings dictionary to the instance or static class
             type.BaseType?.GetProperty("Settings")?.SetValue(instance, settings);
-
-            // Map settings to properties that are annotated with the SettingAttribute
 
             // Get all properties with the SettingAttribute
             var settingProperties = type.GetProperties()
@@ -260,50 +267,104 @@ namespace CodeDeck
             // Try to parse the setting into the correct type and assign the value to the property
             foreach (var p in settingProperties)
             {
-                if (settings?.TryGetValue(p.Name, out var value) ?? false)
+                if (settings is not null && settings.ContainsKey(p.Name) && p is not null)
                 {
-                    // Parse string
-                    if (p.PropertyType.Name == typeof(string).Name)
+                    JsonNode? value = settings[p.Name];
+                    // Console.WriteLine($"{p.Name} = {value?.ToJsonString()}");
+                    JsonSerializerOptions jsOpts = new();
+                    jsOpts.Converters.Add(new ColorParser());
+                    jsOpts.Converters.Add(new KeyIdentifierConverter());
+                    jsOpts.Converters.Add(new ImageParser());
+                    foreach (CustomAttributeData v in p.CustomAttributes)
                     {
-                        p.SetValue(instance, value);
-                    }
-                    // Parse bool
-                    else if (p.PropertyType == typeof(bool?) || p.PropertyType == typeof(bool))
-                    {
-                        if (bool.TryParse(value, out var parsedValue))
+                        if (v.AttributeType.Name == nameof(JsonConverterAttribute))
                         {
-                            p.SetValue(instance, parsedValue);
+                            // Kill me, it works
+                            Type? jv = v.ConstructorArguments[0].Value as Type;
+                            if (jv is not null)
+                            {
+                                JsonConverter? cv = Activator.CreateInstance(jv) as JsonConverter;
+                                if (cv is not null)
+                                {
+                                    jsOpts.Converters.Add(cv);
+                                }
+                            }
                         }
                     }
-                    // Parse byte
-                    else if (p.PropertyType == typeof(byte?) || p.PropertyType == typeof(byte))
+
+                    object? valObj = JsonSerializer.Deserialize(value, p.PropertyType, jsOpts);
+                    if (valObj is not null)
                     {
-                        if (byte.TryParse(value, out var parsedValue))
-                        {
-                            p.SetValue(instance, parsedValue);
-                        }
-                    }
-                    // Parse int
-                    else if (p.PropertyType == typeof(int?) || p.PropertyType == typeof(int))
-                    {
-                        if (int.TryParse(value, out var parsedValue))
-                        {
-                            p.SetValue(instance, parsedValue);
-                        }
-                    }
-                    // Parse double
-                    else if (p.PropertyType == typeof(double?) || p.PropertyType == typeof(double))
-                    {
-                        if (double.TryParse(value, out var parsedValue))
-                        {
-                            p.SetValue(instance, parsedValue);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning($"<{nameof(Plugin)}.{nameof(MapSettings)}> Can not map setting '{p.Name}' because data type '{p.PropertyType.Name}' is not supported.");
+                        p.SetValue(instance, valObj);
                     }
                 }
+                // if (settings?.TryGetValue(p.Name, out var value) ?? false)
+                // {
+                //     // Parse string
+                //     if (p.PropertyType.Name == typeof(string).Name)
+                //     {
+                //         p.SetValue(instance, value);
+                //     }
+                //     // Parse bool
+                //     else if (p.PropertyType == typeof(bool?) || p.PropertyType == typeof(bool))
+                //     {
+                //         if (bool.TryParse(value, out var parsedValue))
+                //         {
+                //             p.SetValue(instance, parsedValue);
+                //         }
+                //     }
+                //     // Parse byte
+                //     else if (p.PropertyType == typeof(byte?) || p.PropertyType == typeof(byte))
+                //     {
+                //         if (byte.TryParse(value, out var parsedValue))
+                //         {
+                //             p.SetValue(instance, parsedValue);
+                //         }
+                //     }
+                //     // Parse int
+                //     else if (p.PropertyType == typeof(int?) || p.PropertyType == typeof(int))
+                //     {
+                //         if (int.TryParse(value, out var parsedValue))
+                //         {
+                //             p.SetValue(instance, parsedValue);
+                //         }
+                //     }
+                //     else if (p.PropertyType == typeof(Image))
+                //     {
+                //         if (File.Exists(value))
+                //         {
+                //             Image parsedValue;
+                //             try
+                //             {
+                //                 parsedValue = Image.Load<Rgba32>(value);
+                //                 p.SetValue(instance, parsedValue);
+                //             }
+                //             finally
+                //             {
+                //                 _logger.LogError("Error loading image");
+                //             }
+                //         }
+                //     }
+                //     else if (p.PropertyType == typeof(Color?) || p.PropertyType == typeof(Color))
+                //     {
+                //         if (Color.TryParse(value, out var parsedValue))
+                //         {
+                //             p.SetValue(instance, parsedValue);
+                //         }
+                //     }
+                //     // Parse double
+                //     else if (p.PropertyType == typeof(double?) || p.PropertyType == typeof(double))
+                //     {
+                //         if (double.TryParse(value, out var parsedValue))
+                //         {
+                //             p.SetValue(instance, parsedValue);
+                //         }
+                //     }
+                //     else
+                //     {
+                //         _logger.LogWarning($"<{nameof(Plugin)}.{nameof(MapSettings)}> Can not map setting '{p.Name}' because data type '{p.PropertyType.Name}' is not supported.");
+                //     }
+                // }
             }
         }
     }

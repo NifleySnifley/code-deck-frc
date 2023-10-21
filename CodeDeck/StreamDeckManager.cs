@@ -266,7 +266,7 @@ namespace CodeDeck
             _applyingConfiguration = false;
         }
 
-        private async void ConfigurationProvider_CheckConfiguration(object? sender, EventArgs e)
+        private void ConfigurationProvider_CheckConfiguration(object? sender, EventArgs e)
         {
             _configurationProvider.LoadedConfiguration.PrepareConfiguration(_logger, _streamDeck, _configurationProvider);
         }
@@ -293,7 +293,7 @@ namespace CodeDeck
                 .Where(x => x.ProcessStartedTrigger is not null)
                 .Select(x => x.ProcessStartedTrigger)
                 .ToList()
-                .ForEach(x => _processMonitor.Add(x));
+                .ForEach(x => _processMonitor.Add(x ?? "")); // Just to make the compiler happy....
 
             // Get first normal profile
             var profile = _configurationProvider.LoadedConfiguration.Profiles

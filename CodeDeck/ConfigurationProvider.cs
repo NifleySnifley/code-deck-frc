@@ -44,6 +44,7 @@ namespace CodeDeck
 
         }
 
+#pragma warning disable 8618
         public ConfigurationProvider(ILogger<ConfigurationProvider> logger)
         {
             _logger = logger;
@@ -65,9 +66,14 @@ namespace CodeDeck
                 NotifyFilter = NotifyFilters.LastWrite
             };
 
+            // _loadedConfiguration = new();
+            // _loadedFlatConfiguration = new();
+
             // Register file system watcher changed event
             _fileSystemWatcher.Changed += Handle_FileSystemWatcher_Changed;
         }
+#pragma warning restore 8618
+
 
         private async void Handle_FileSystemWatcher_Changed(object sender, FileSystemEventArgs e)
         {
@@ -77,7 +83,7 @@ namespace CodeDeck
             ReloadConfig(e);
         }
 
-        public async void ReloadConfig(EventArgs e)
+        public void ReloadConfig(EventArgs e)
         {
             // Load configuration from file or load a default configuration
             _loadedConfiguration = LoadConfiguration() ?? CreateDefaultConfiguration();
