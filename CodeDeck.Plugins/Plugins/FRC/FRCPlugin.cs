@@ -251,6 +251,9 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 			[Setting] public Color FalseColor { get; set; } = Color.Transparent;
 
+			[Setting] public string TrueText { get; set; } = "";
+			[Setting] public string FalseText { get; set; } = "";
+
 			[Setting] public bool Toggle { get; set; } = false;
 			bool state = false;
 
@@ -279,6 +282,7 @@ namespace CodeDeck.Plugins.Plugins.FRC
 			private void Update()
 			{
 				BackgroundColor = state ? TrueColor : FalseColor;
+				Text = state ? TrueText : FalseText;
 			}
 
 			public override Task OnTilePressDown(CancellationToken cancellationToken)
@@ -317,9 +321,6 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 			[Setting] public Image? TrueImage { get; set; } = null;
 			[Setting] public Image? FalseImage { get; set; } = null;
-
-			[Setting]
-			public JsonObject? TestSetting { get; set; } = null;
 
 			public override Task Init(CancellationToken cancellationToken)
 			{
@@ -382,12 +383,6 @@ namespace CodeDeck.Plugins.Plugins.FRC
 
 				remote = NTValueWrapper.GetWrapper(NTPath);
 				remote.ChangeListener += ChangeListener;
-
-				// Console.WriteLine(Settings?.ToJsonString());
-				// Console.WriteLine(Settings?["Value"]?.GetValue<string>());
-
-				// thisbuttonvalue = ParseValue(Settings?["Value"]?.GetValue<string>()) ?? Value.MakeString(Text);
-				// thisinitvalue = ParseValue(Settings?["Initial"]?.GetValue<string>());
 
 				if (Initial is not null)
 					remote.value = Initial;
@@ -537,6 +532,46 @@ namespace CodeDeck.Plugins.Plugins.FRC
 			public override Task DeInit()
 			{
 				return base.DeInit();
+			}
+		}
+
+		public class NTValueIndicator : Tile
+		{
+			NTValueWrapper remote = NTValueWrapper.Empty();
+			[Setting] public Dictionary<string, TileStyle> Styles { get; set; } = new();
+			private Dictionary<Value, TileStyle> _stylesInternal { get; set; } = new();
+			private TileStyle? BaseStyle;
+
+			public override Task Init(CancellationToken cancellationToken)
+			{
+				InitNT();
+
+				remote = NTValueWrapper.GetWrapper(Settings?["NTPath"]?.GetValue<string>() ?? nameof(NTBooleanButton));
+				remote.ChangeListener += ChangeListener;
+
+				BaseStyle = TileStyle.LoadFrom(this);
+				foreach (string key in Styles.Keys)
+				{
+					TileStyle styleAdded = Styles[key].AddDefault(BaseStyle);
+					_stylesInternal.Add(ParseNTValueJSON(JsonObject.Parse(key)?.AsValue()) ?? Value.MakeString(key), styleAdded);
+				}
+
+				SetIconState();
+				return base.Init(cancellationToken);
+			}
+
+			private void SetIconState()
+			{
+				if (remote is null || remote.value is null) BaseStyle?.Apply(this);
+				foreach (Value key in _stylesInternal.Keys)
+				{
+					if (CompareNTValue(key, remote?.value ?? new Value())) _stylesInternal[key].Apply(this);
+				}
+			}
+
+			private void ChangeListener(object? sender, EventArgs e)
+			{
+				SetIconState();
 			}
 		}
 	}

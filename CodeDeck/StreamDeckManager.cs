@@ -501,16 +501,30 @@ namespace CodeDeck
             // - Fonts should not be recreated on every draw
 
             // Get customized values, Key (set by user) values override Tile values, set default value if needed
-            string? text = keyWrapper.Key.Text ?? keyWrapper.Tile?.Text;
-            string? font = keyWrapper.Key.Font ?? keyWrapper.Tile?.Font ?? "Ubuntu";
+            // string? text = keyWrapper.Key.Text ?? keyWrapper.Tile?.Text;
+            // string? font = keyWrapper.Key.Font ?? keyWrapper.Tile?.Font ?? "Ubuntu";
+            // bool fontBold = keyWrapper.Key.FontBold ?? false;
+            // bool fontItalic = keyWrapper.Key.FontItalic ?? false;
+            // float fontSize = keyWrapper.Key.FontSize ?? keyWrapper.Tile?.FontSize ?? 16.0f;
+            // float lineSpacing = keyWrapper.Key.LineSpacing ?? 1.1f;
+            // Color textColor = keyWrapper.Key.TextColorAsColor ?? keyWrapper.Tile?.TextColor ?? Color.White;
+            // Color bgColor = keyWrapper.Key.BackgroundColorAsColor ?? keyWrapper.Tile?.BackgroundColor ?? Color.Transparent;
+            // Image? image = keyWrapper.Image ?? (keyWrapper.Key.DisableTileImage ? null : keyWrapper.Tile?.Image);
+            // int imagePadding = keyWrapper.Key.ImagePadding ?? keyWrapper.Tile?.ImagePadding ?? 0;
+
+            // TODO: Tile settings have precedence!
+            string? text = keyWrapper.Tile?.Text ?? keyWrapper.Key.Text;
+            string? font = keyWrapper.Tile?.Font ?? keyWrapper.Key.Font ?? "Ubuntu";
             bool fontBold = keyWrapper.Key.FontBold ?? false;
             bool fontItalic = keyWrapper.Key.FontItalic ?? false;
             float fontSize = keyWrapper.Key.FontSize ?? keyWrapper.Tile?.FontSize ?? 16.0f;
             float lineSpacing = keyWrapper.Key.LineSpacing ?? 1.1f;
-            Color textColor = keyWrapper.Key.TextColorAsColor ?? keyWrapper.Tile?.TextColor ?? Color.White;
-            Color bgColor = keyWrapper.Key.BackgroundColorAsColor ?? keyWrapper.Tile?.BackgroundColor ?? Color.Transparent;
+            Color textColor = keyWrapper.Tile?.TextColor ?? keyWrapper.Key.TextColorAsColor ?? Color.White;
+            Color bgColor = keyWrapper.Tile?.BackgroundColor ?? keyWrapper.Key.BackgroundColorAsColor ?? Color.Transparent;
             Image? image = keyWrapper.Image ?? (keyWrapper.Key.DisableTileImage ? null : keyWrapper.Tile?.Image);
-            int imagePadding = keyWrapper.Key.ImagePadding ?? keyWrapper.Tile?.ImagePadding ?? 0;
+            int imagePadding = keyWrapper.Tile?.ImagePadding ?? keyWrapper.Key.ImagePadding ?? 0;
+
+
             bool? indicator = keyWrapper.Tile?.ShowIndicator;
             Color indicatorColor = keyWrapper.Key.ActivityIndicatorColorAsColor ?? keyWrapper.Tile?.IndicatorColor ?? Color.Yellow;
             bool? folderIndicator = keyWrapper.Key.ShowFolderIndicator ?? (keyWrapper.Key.Profile != null && keyWrapper.Key.Page != null);
@@ -529,8 +543,7 @@ namespace CodeDeck
             // Add image
             if (image != null)
             {
-                image.Mutate(i => i.Resize(_streamDeck.Keys.KeySize - (imagePadding * 2),
-                    _streamDeck.Keys.KeySize - (imagePadding * 2)));
+                image.Mutate(i => i.Resize(_streamDeck.Keys.KeySize - (imagePadding * 2), _streamDeck.Keys.KeySize - (imagePadding * 2)));
                 i.Mutate(x => x.DrawImage(image, new Point(imagePadding + imageOffsetX, imagePadding + imageOffsetY), 1f));
             }
 

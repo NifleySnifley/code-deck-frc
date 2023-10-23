@@ -3,6 +3,50 @@ using SixLabors.ImageSharp;
 
 namespace CodeDeck.PluginAbstractions
 {
+    public class TileStyle
+    {
+        public Color? BackgroundColor { get; set; } = null;
+        public Color? TextColor { get; set; } = null;
+        public Image? Image { get; set; } = null;
+        public string? Text { get; set; } = null;
+        public float? FontSize { get; set; } = null;
+        public string? Font { get; set; } = null;
+
+        public static TileStyle LoadFrom(Tile t)
+        {
+            return new TileStyle
+            {
+                BackgroundColor = t.BackgroundColor,
+                TextColor = t.TextColor,
+                Image = t.Image,
+                Text = t.Text,
+                FontSize = t.FontSize,
+                Font = t.Font
+            };
+        }
+
+        public TileStyle AddDefault(TileStyle def)
+        {
+            BackgroundColor ??= def.BackgroundColor;
+            TextColor ??= def.TextColor;
+            Image ??= def.Image;
+            Text ??= def.Text;
+            FontSize ??= def.FontSize;
+            Font ??= def.Font;
+            return this;
+        }
+
+        public void Apply(Tile t)
+        {
+            t.BackgroundColor = BackgroundColor;
+            t.TextColor = TextColor;
+            t.Text = Text;
+            t.FontSize = FontSize;
+            t.Font = Font;
+            t.Image = Image;
+        }
+    }
+
     /// <summary>
     /// Represents a Tile, a Tile can react to key presses or just display data
     /// </summary>
