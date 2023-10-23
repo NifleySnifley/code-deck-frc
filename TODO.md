@@ -11,7 +11,7 @@
 - [ ] Text/Value display tile `NTTextDisplay`
 - [ ] Number display tile (selectable style: bargraph, dial, full-tile bargraph, etc.) `NTNumberDisplay`
   - [ ] Themes
-- [x] Enum display (value -> bg color and icon image) `NTMultiIndicator`
+- [x] Enum display (value -> bg color and icon image) `NTValueIndicator`
   - [x] Each value is associated with color, image, text, etc.
   - [ ] Make `NTBooleanIndicator` a subclass of this
   - [ ] Plugin-global enum definitions?
@@ -22,11 +22,11 @@
 
 - [x] `NTBooleanButton`
 - [x] `NTBooleanIndicator`
-- [ ] `NTValueSetter`
-- [ ] `NTNumberChanger`
+- [x] `NTValueSetter`
+- [x] `NTNumberChanger`
 - [ ] `NTTextDisplay`
 - [ ] `NTNumberDisplay`
-- [ ] `NTMultiIndicator`
+- [x] `NTValueIndicator`
 - [ ] `NTMultiSelector`
 
 ### General Things

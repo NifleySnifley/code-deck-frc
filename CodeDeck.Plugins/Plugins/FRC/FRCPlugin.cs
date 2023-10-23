@@ -444,8 +444,8 @@ namespace CodeDeck.Plugins.Plugins.FRC
 			[Setting] public double Max { get; set; } = double.MaxValue;
 			[Setting] public double? Initial { get; set; }
 			[Setting] public bool Holdable { get; set; } = false;
-			[Setting] public int? HoldPulseMS { get; set; }
-			[Setting] public int? HoldSenseMS { get; set; }
+			[Setting] public int? HoldPulseMS { get; set; } = 500;
+			[Setting] public int? HoldSenseMS { get; set; } = 500;
 
 			private CancellationTokenSource _bgTaskCancel = new();
 
