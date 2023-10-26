@@ -32,7 +32,10 @@
 ### General Things
 
 - [ ] Proper CLI argument handling
-- [ ] Loading images relative to config directory
+- [x] Loading images relative to config directory
+- [x] Fix button smashing causing buttons be visually stuck
+  - WHY does adding print fix it... this smells like badness
+  - Huhhhh?? I think I fixed it
 - [x] Class for general style (Color, Text, Image, TextColor)
   - [x] Method to store tile's default (base) style
   - [x] Other styles are parsed in addition to the default

@@ -156,50 +156,67 @@ namespace CodeDeck.Plugins.Plugins.FRC
 			return null;
 		}
 
-		public static Value? ParseNTValueJSON(JsonValue? v)
+		public static Value? ParseNTValueJSON(JsonNode? v)
 		{
-			if (v is null) return null;
-			if (v.TryGetValue<double>(out double d))
+
+			if (v is JsonArray)
 			{
-				return Value.MakeDouble(d);
+
+				// TODO: Find a more idiomatic way to do this
+				JsonValue[]? arr = JsonSerializer.Deserialize<JsonValue[]>(v);
+
+				bool? isdouble = arr?[0].TryGetValue<double>(out double d);
+				bool? isstr = arr?[0].TryGetValue<string>(out string? s);
+				bool? isbool = arr?[0].TryGetValue<bool>(out bool b);
+
+				if (isdouble ?? false)
+				{
+					double[] darr = Array.ConvertAll(arr, element => element.GetValue<double>());
+					return Value.MakeDoubleArray(darr);
+				}
+				else if (isstr ?? false)
+				{
+					string[] sarr = Array.ConvertAll(arr, element => element.GetValue<string>());
+					return Value.MakeStringArray(sarr);
+				}
+				else if (isbool ?? false)
+				{
+					bool[] barr = Array.ConvertAll(arr, element => element.GetValue<bool>());
+					return Value.MakeBooleanArray(barr);
+				}
+
 			}
-			else if (v.TryGetValue<int>(out int i))
+			else
 			{
-				return Value.MakeDouble(i);
-			}
-			else if (v.TryGetValue<string>(out string? s) && s is not null)
-			{
-				return Value.MakeString(s);
-			}
-			else if (v.TryGetValue<bool>(out bool b))
-			{
-				return Value.MakeBoolean(b);
-			}
-			else if (v.TryGetValue<double[]>(out double[]? ds) && ds is not null)
-			{
-				return Value.MakeDoubleArray(ds);
-			}
-			else if (v.TryGetValue<int[]>(out int[]? ins) && ins is not null)
-			{
-				return Value.MakeDoubleArray(ins.Select(x => (double)x).ToArray());
-			}
-			else if (v.TryGetValue<bool[]>(out bool[]? bs) && bs is not null)
-			{
-				return Value.MakeBooleanArray(bs);
-			}
-			else if (v.TryGetValue<string[]>(out string[]? ss) && ss is not null)
-			{
-				return Value.MakeStringArray(ss);
+				JsonValue? jv = v as JsonValue;
+				if (jv is null) return null;
+				if (jv.TryGetValue<double>(out double d))
+				{
+					return Value.MakeDouble(d);
+				}
+				else if (jv.TryGetValue<int>(out int i))
+				{
+					return Value.MakeDouble(i);
+				}
+				else if (jv.TryGetValue<string>(out string? s) && s is not null)
+				{
+					return Value.MakeString(s);
+				}
+				else if (jv.TryGetValue<bool>(out bool b))
+				{
+					return Value.MakeBoolean(b);
+				}
 			}
 
-			return null;
+			return new Value();
 		}
 
 		public class NTValueConverter : JsonConverter<Value>
 		{
 			public override Value? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 			{
-				return ParseNTValueJSON(JsonObject.Parse(ref reader, null)?.AsValue());
+				JsonNode? obj = JsonNode.Parse(ref reader, null);
+				return ParseNTValueJSON(obj);
 			}
 
 			public override void Write(Utf8JsonWriter writer, Value value, JsonSerializerOptions options)

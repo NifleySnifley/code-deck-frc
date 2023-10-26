@@ -384,6 +384,7 @@ namespace CodeDeck
         /// <returns></returns>
         private Image? SafeLoadImage(string fileName, bool usePlaceholder = false)
         {
+            fileName = fileName.Replace("#", ConfigurationProvider.ConfigFolder);
             try
             {
                 return Image.Load(fileName);
@@ -543,8 +544,16 @@ namespace CodeDeck
             // Add image
             if (image != null)
             {
-                image.Mutate(i => i.Resize(_streamDeck.Keys.KeySize - (imagePadding * 2), _streamDeck.Keys.KeySize - (imagePadding * 2)));
-                i.Mutate(x => x.DrawImage(image, new Point(imagePadding + imageOffsetX, imagePadding + imageOffsetY), 1f));
+                try
+                {
+                    image.Mutate(i => i.Resize(_streamDeck.Keys.KeySize - (imagePadding * 2), _streamDeck.Keys.KeySize - (imagePadding * 2)));
+                    i.Mutate(x => x.DrawImage(image, new Point(imagePadding + imageOffsetX, imagePadding + imageOffsetY), 1f));
+
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError($"Image processing error: {e.Message} {e.StackTrace}");
+                }
             }
 
             // Add text
@@ -591,6 +600,8 @@ namespace CodeDeck
                 i.Mutate(x => x.Fill(folderIndicatorColor,
                     new Rectangle(0, _streamDeck.Keys.KeySize - lineHeight, _streamDeck.Keys.KeySize, lineHeight)));
             }
+
+            i.Mutate(x => x.Rotate(-_configurationProvider.LoadedConfiguration.Rotation));
 
             return i;
         }

@@ -61,7 +61,6 @@ namespace CodeDeck
             // Set up file system watcher
             _fileSystemWatcher = new FileSystemWatcher(ConfigFolder)
             {
-                Filter = CONFIGURATION_FILE_NAME,
                 EnableRaisingEvents = true,
                 NotifyFilter = NotifyFilters.LastWrite
             };
